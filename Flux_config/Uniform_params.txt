@@ -1,0 +1,5 @@
+particles: gamma
+fractions: 1
+
+E_min: 0.1
+E_max: 10000

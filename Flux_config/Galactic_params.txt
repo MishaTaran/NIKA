@@ -1,0 +1,5 @@
+particle: proton
+phiMV: 600
+
+E_min: 1
+E_max: 1000000

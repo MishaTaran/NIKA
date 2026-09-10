@@ -1,0 +1,30 @@
+# =================
+# Optical constants
+# =================
+# Format supported:
+#   KEY  VALUE  [UNIT]
+# or
+#   KEY=VALUE [UNIT]
+#
+# Units: um, mm, cm, m, ps, ns, us, ms, s, eV, keV, MeV, 1/eV, 1/keV, 1/MeV, mm/eV, mm/keV, mm/MeV
+# If UNIT omitted => dimensionless.
+#
+# -------------------------
+# Scintillation (material)
+# -------------------------
+# SCINTILLATIONYIELD: photons per energy (Geant4 expects photons/MeV)
+SCINTILLATIONYIELD 61000 1/MeV
+
+# RESOLUTIONSCALE: intrinsic resolution scale factor (dimensionless)
+RESOLUTIONSCALE 4.87
+
+# SCINTILLATIONTIMECONSTANT1/2: decay constants for component 1/2
+SCINTILLATIONTIMECONSTANT1 1000 ns
+#SCINTILLATIONTIMECONSTANT2 1500 ns
+
+# SCINTILLATIONYIELD1/2: fraction of photons in each component (must sum ~1)
+SCINTILLATIONYIELD1 1.0
+#SCINTILLATIONYIELD2 0.0
+
+# Optional: Birks constant for ionization quenching
+BIRKSCONSTANT 0.0067 mm/MeV

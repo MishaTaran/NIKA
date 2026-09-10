@@ -1,0 +1,5 @@
+table_path: ../TableSpectrum/TGF.csv
+particle: gamma
+
+E_min: 0.1
+E_max: 1000
