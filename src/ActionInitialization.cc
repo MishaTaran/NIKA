@@ -69,7 +69,7 @@ void ActionInitialization::Build() const {
     SteppingAction* stepAct = new SteppingAction();
     stepAct->EnableDebug(false);
     stepAct->SetDebugEventID(-1);
-    stepAct->EnableGammaLog(true);   // <-- включить логирование гамма-взаимодействий
+    stepAct->EnableGammaLog(false);   // <-- включить логирование гамма-взаимодействий
     stepAct->SetGammaLogEventID(-1); // -1 = все события; можно указать конкретный eventID
     SetUserAction(stepAct);
 }
