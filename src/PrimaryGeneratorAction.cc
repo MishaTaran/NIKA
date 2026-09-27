@@ -96,7 +96,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* evt) {
     if (fluxDirection == "vertical_up") {
         v = G4ThreeVector(0., 0., 1.);
         const G4double halfSize = 2 * mm;   
-        const G4double height   = 10.0 * cm;  
+        const G4double height   = -10.0 * cm;  
         const G4double x_ = (2 * G4UniformRand() - 1) * halfSize;
         const G4double y_ = (2 * G4UniformRand() - 1) * halfSize;
         const G4double z_ = -height;
@@ -104,7 +104,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* evt) {
     } else if (fluxDirection == "vertical_down") {
         v = G4ThreeVector (0., 0., -1.0);
         const G4double halfSize = 2 * mm;
-        const G4double height = -10.0 * cm;  
+        const G4double height = 10.0 * cm;  
         const G4double x_ = (2 * G4UniformRand() - 1) * halfSize;
         const G4double y_ = (2 * G4UniformRand() - 1) * halfSize;
         const G4double z_ = height;

@@ -92,7 +92,7 @@ void EventAction::EndOfEventAction(const G4Event* evt) {
         }
 
         // === NEW: вывод счётчиков SiPM в терминал ===
-       // PrintSiPMCounts_(eventID, primaryE_MeV);
+        //PrintSiPMCounts_(eventID, primaryE_MeV);
     }
 }
 
