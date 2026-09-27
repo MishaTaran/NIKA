@@ -7,6 +7,7 @@ SiPMOpticalSD::SiPMOpticalSD(const G4String& name)
 
 void SiPMOpticalSD::Initialize(G4HCofThisEvent*) {
     npeTrigger = npeSideVeto = npeUpperVeto = npeBottomVeto = 0;
+    npeTriggerLayer = {0, 0, 0};   // === NEW ===
     perChTrigger.clear();
     perChSideVeto.clear();
     perChUpperVeto.clear();
@@ -38,7 +39,7 @@ SiPMGroup SiPMOpticalSD::ClassifyByPVName(const G4VPhysicalVolume* pv) {
     if (name.find("SideVetoSiPM") != std::string::npos) return SiPMGroup::SideVeto;
     if (name.find("UpperVetoSiPM") != std::string::npos) return SiPMGroup::UpperVeto;
     if (name.find("BottomVetoSiPM") != std::string::npos) return SiPMGroup::BottomVeto;
-    
+
     return SiPMGroup::Unknown;
 }
 
@@ -47,22 +48,22 @@ SiPMGroup SiPMOpticalSD::ClassifyByPVName(const G4VPhysicalVolume* pv) {
 // ============================================================
 int SiPMOpticalSD::GetSiPMCopyNumber(const G4StepPoint* point) {
     if (!point) return -1;
-    
+
     auto touchable = point->GetTouchableHandle();
     if (!touchable) return -1;
-    
+
     // Проходим по всей иерархии от корня к текущему объему
     for (int i = touchable->GetHistoryDepth() - 1; i >= 0; --i) {
         auto* pv = touchable->GetVolume(i);
         if (!pv) continue;
-        
+
         G4String name = pv->GetName();
         // Ищем наш SiPM по имени (формат: "TriggerSiPM_PVP_N", "SideVetoSiPM_PVP_N" и т.д.)
         if (name.find("SiPM_PVP_") != std::string::npos) {
             return pv->GetCopyNo();
         }
     }
-    
+
     return -1;
 }
 
@@ -85,8 +86,8 @@ G4bool SiPMOpticalSD::ProcessHits(G4Step* step, G4TouchableHistory*) {
 
     if (post->GetStepStatus() != fGeomBoundary) {
         return false;
-    }   
-    
+    }
+
     auto* b = GetBoundaryProcess();
     if (!b) return false;
 
@@ -96,6 +97,7 @@ G4bool SiPMOpticalSD::ProcessHits(G4Step* step, G4TouchableHistory*) {
     }
     auto* prePV = pre->GetPhysicalVolume();
     auto* postPV = post->GetPhysicalVolume();
+
     // ============================================================
     // ПОЛУЧАЕМ НОМЕР КОПИИ ЧЕРЕЗ TOUCHABLE
     // ============================================================
@@ -106,10 +108,12 @@ G4bool SiPMOpticalSD::ProcessHits(G4Step* step, G4TouchableHistory*) {
         if (prePV) ch = prePV->GetCopyNo();
         if (ch < 0 && postPV) ch = postPV->GetCopyNo();
     }
+
     // ============================================================
     // ОПРЕДЕЛЯЕМ ГРУППУ SiPM
     // ============================================================
     SiPMGroup grp = SiPMGroup::Unknown;
+
     // Способ 1: По имени физического объема
     if (prePV) {
         grp = ClassifyByPVName(prePV);
@@ -117,6 +121,7 @@ G4bool SiPMOpticalSD::ProcessHits(G4Step* step, G4TouchableHistory*) {
     if (grp == SiPMGroup::Unknown && postPV) {
         grp = ClassifyByPVName(postPV);
     }
+
     // Способ 2: По логическому объему
     if (grp == SiPMGroup::Unknown && SiPMLV) {
         auto* preLV = prePV ? prePV->GetLogicalVolume() : nullptr;
@@ -126,15 +131,17 @@ G4bool SiPMOpticalSD::ProcessHits(G4Step* step, G4TouchableHistory*) {
             if (grp == SiPMGroup::Unknown) grp = ClassifyByPVName(postPV);
         }
     }
+
     // Способ 3: По номеру копии (если известны диапазоны)
     if (grp == SiPMGroup::Unknown && ch >= 0) {
-        // 24 Trigger (0-23), 8 SideVeto (24-31), 0-7; 8-15; 16-23
+        // 24 Trigger (0-23), 8 SideVeto (24-31),
         // 4 UpperVeto (32-35), 4 BottomVeto (36-39)
         if (ch < 24) grp = SiPMGroup::Trigger;
         else if (ch < 32) grp = SiPMGroup::SideVeto;
         else if (ch < 36) grp = SiPMGroup::UpperVeto;
         else if (ch < 40) grp = SiPMGroup::BottomVeto;
     }
+
     // ============================================================
     // СОХРАНЯЕМ РЕЗУЛЬТАТЫ
     // ============================================================
@@ -142,6 +149,22 @@ G4bool SiPMOpticalSD::ProcessHits(G4Step* step, G4TouchableHistory*) {
     if (grp == SiPMGroup::Trigger) {
         detName = "Trigger";
         ++npeTrigger;
+
+        // === NEW: определяем слой триггера по номеру канала ===
+        // Порядок размещения в Detector::PlaceAllSiPMs():
+        //   layer 0 -> copyNo 0..7
+        //   layer 1 -> copyNo 8..15
+        //   layer 2 -> copyNo 16..23
+        int layer = -1;
+        if (ch >= 0) {
+            if (ch < 8)       layer = 0;
+            else if (ch < 16) layer = 1;
+            else if (ch < 24) layer = 2;
+        }
+        if (layer >= 0 && layer < 3) {
+            ++npeTriggerLayer[layer];
+        }
+
         if (ch >= 0) ++perChTrigger[ch];
     } else if (grp == SiPMGroup::SideVeto) {
         detName = "SideVeto";

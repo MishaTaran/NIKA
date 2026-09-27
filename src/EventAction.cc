@@ -7,7 +7,7 @@ EventAction::EventAction(AnalysisManager* an, RunAction* r) : analysisManager(an
     detMap = {
         {"TriggerSD/EdepHits", 0, "Trigger"},
         {"SideVetoSD/EdepHits", 1, "SideVeto"},
-        {"UpperVetoSD/EdepHits", 2, "UpperVeto"}, 
+        {"UpperVetoSD/EdepHits", 2, "UpperVeto"},
         {"BottomVetoSD/EdepHits", 3, "BottomVeto"},
     };
     HCIDs.assign(detMap.size(), -1);
@@ -17,20 +17,19 @@ void EventAction::BeginOfEventAction(const G4Event*) {
     nPrimaries = 0;
     nInteractions = 0;
     nEdepHits = 0;
-    
+
     // Инициализация флагов для энергетических детекторов
     hasTrigger = false;
     hasSideVeto = false;
     hasBottomVeto = false;
     hasUpperVeto = false;
-    hasTrigger = false;
-    
+
     // Инициализация флагов для оптических детекторов
     hasTriggerOpt = false;
     hasSideVetoOpt = false;
     hasBottomVetoOpt = false;
     hasUpperVetoOpt = false;
-    
+
     // Инициализация слоев триггера
     for (int i = 0; i < 3; ++i) {
         hasTriggerLayer[i] = false;
@@ -76,24 +75,27 @@ void EventAction::EndOfEventAction(const G4Event* evt) {
 
     if (primaryE_MeV > 0.0) {
         if (run && hasTrigger && !hasSideVeto && !hasBottomVeto && !hasUpperVeto) {
-            if (run) {
-                run->AddTriggeredTriggerOnly(primaryE_MeV);
-            }
+            run->AddTriggeredTriggerOnly(primaryE_MeV);
         }
     }
 
     // Счетчики для оптических детекторов
     if (useOptics) {
         WriteSiPMFromSD_(eventID);
-        
+
         if (run && hasTriggerOpt && !hasSideVetoOpt && !hasBottomVetoOpt && !hasUpperVetoOpt) run->AddTriggerOnlyOpt(1);
         if (run && hasTriggerOpt && hasSideVetoOpt && hasBottomVetoOpt && hasUpperVetoOpt) run->AddTriggerAndVetoOpt(1);
 
         if (primaryE_MeV > 0.0) {
-            if (run && hasTriggerOpt && !hasSideVetoOpt && !hasBottomVetoOpt && !hasUpperVetoOpt) run->AddTriggeredTriggerOnlyOpt(primaryE_MeV);
+            if (run && hasTriggerOpt && !hasSideVetoOpt && !hasBottomVetoOpt && !hasUpperVetoOpt)
+                run->AddTriggeredTriggerOnlyOpt(primaryE_MeV);
         }
+
+        // === NEW: вывод счётчиков SiPM в терминал ===
+        PrintSiPMCounts_(eventID, primaryE_MeV);
     }
 }
+
 void EventAction::WritePrimaries_(int eventID) {
     for (const auto& p : primBuf) {
         analysisManager->FillPrimaryRow(eventID, p.name, p.E_MeV, p.dir, p.pos_mm);
@@ -164,8 +166,15 @@ int EventAction::WriteEdepFromSD_(const G4Event* evt, int eventID) {
                 edep_MeV = 0;
             }
             if (edep_MeV > 0.0) {
-                if (det_name == "Trigger") MarkTrigger();
-                else if (det_name == "SideVeto" or det_name == "BottomVeto" or det_name == "UpperVeto") MarkVeto();
+                if (det_name == "Trigger") {
+                    MarkTrigger();
+                    // === пишем хит в trigger_hits с номером слоя ===
+                    const int layer = (h->layer >= 0) ? h->layer : h->volumeID;
+                    analysisManager->FillTriggerHitRow(eventID, layer, edep_MeV);
+                }
+                else if (det_name == "SideVeto" or det_name == "BottomVeto" or det_name == "UpperVeto") {
+                    MarkVeto();
+                }
                 analysisManager->FillEdepRow(eventID, det_name, edep_MeV);
             }
         }
@@ -194,13 +203,13 @@ void EventAction::WriteSiPMFromSD_(int eventID) {
     npeB = npeB > oBottomVetoThreshold ? npeB : 0;
 
     if (npeC > 0) MarkTriggerOpt();
-    
+
     // Любое veto (SideVeto, UpperVeto, BottomVeto) считается veto
     if (npeS > 0 || npeU > 0 || npeB > 0) MarkVetoOpt();
 
     int npeVetoTotal = npeS + npeU;  // SideVeto + UpperVeto
     analysisManager->FillSiPMEventRow(eventID, npeC, npeVetoTotal, npeB);
-    
+
     // ---- Trigger каналы ----
     for (const auto& kv : sipmSD->GetPerChannelTrigger()) {
         analysisManager->FillSiPMChannelRow(eventID, "Trigger", kv.first, kv.second);
@@ -220,4 +229,40 @@ void EventAction::WriteSiPMFromSD_(int eventID) {
     for (const auto& kv : sipmSD->GetPerChannelBottomVeto()) {
         analysisManager->FillSiPMChannelRow(eventID, "BottomVeto", kv.first, kv.second);
     }
+}
+
+// ============================================================
+// NEW: вывод счётчиков SiPM в терминал
+// ============================================================
+void EventAction::PrintSiPMCounts_(int eventID, double primaryE_MeV) {
+    auto* sdm = G4SDManager::GetSDMpointer();
+    if (!sdm) return;
+
+    auto* sdBase = sdm->FindSensitiveDetector("SiPMOpticalSD", false);
+    auto* sipmSD = dynamic_cast<SiPMOpticalSD*>(sdBase);
+    if (!sipmSD) return;
+
+    const int npeTrigger    = sipmSD->GetNpeTrigger();
+    const int npeSideVeto   = sipmSD->GetNpeSideVeto();
+    const int npeUpperVeto  = sipmSD->GetNpeUpperVeto();
+    const int npeBottomVeto = sipmSD->GetNpeBottomVeto();
+
+    const auto& layers = sipmSD->GetNpeTriggerLayers();
+    const int npeL0 = layers[0];
+    const int npeL1 = layers[1];
+    const int npeL2 = layers[2];
+
+    G4cout << "========================================\n"
+           << " Event " << eventID
+           << "  E_primary = " << primaryE_MeV << " MeV\n"
+           << "----------------------------------------\n"
+           << "  Trigger     : " << npeTrigger
+           << "   (L0=" << npeL0
+           << ", L1=" << npeL1
+           << ", L2=" << npeL2 << ")\n"
+           << "  SideVeto    : " << npeSideVeto << "\n"
+           << "  UpperVeto   : " << npeUpperVeto << "\n"
+           << "  BottomVeto  : " << npeBottomVeto << "\n"
+           << "========================================"
+           << G4endl;
 }

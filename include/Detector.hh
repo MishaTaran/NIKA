@@ -49,7 +49,7 @@ private:
     G4Material* csIMat{};
     G4Material* glassMat{};
 
-    // ===== Логические объемы =====
+    // ===== Логические объёмы =====
     G4LogicalVolume* cubeOuterLV{};
     G4VPhysicalVolume* cubeOuterPV{};
     G4LogicalVolume* bottomVetoLV{};
@@ -106,7 +106,7 @@ private:
                                 G4OpticalSurface* surf);
     void ConstructOpticalSurfaces();
     void ConstructShellAndContainer();
-    
+
     // ===== SiPM методы =====
     void ConstructSiPM();
     void PlaceAllSiPMs();
@@ -114,4 +114,4 @@ private:
     G4OpticalSurface* SiPMPhotocathodeSurf = nullptr;
 };
 
-#endif
+#endif // DETECTOR_HH

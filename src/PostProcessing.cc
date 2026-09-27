@@ -119,7 +119,6 @@ void PostProcessing::SaveHistPng(const std::string& histName,
     canvas.SaveAs(outPngPath.c_str());
 }
 
-
 void PostProcessing::ExportTreeToCsv(const std::string& treeName,
                                      const std::string& csvPath) {
     TTree* tree = nullptr;
@@ -205,6 +204,9 @@ void PostProcessing::ExtractNtData() {
 
     ExportTreeToCsv("edep", (fs::path(csvDir) / "edep.csv").string());
     ExportTreeToCsv("primary", (fs::path(csvDir) / "primary.csv").string());
+
+    // === NEW: trigger_hits ===
+    ExportTreeToCsv("trigger_hits", (fs::path(csvDir) / "trigger_hits.csv").string());
 
     if (saveSecondaries) {
         ExportTreeToCsv("event", (fs::path(csvDir) / "event.csv").string());
@@ -478,7 +480,6 @@ void PostProcessing::SaveTrigEdepCsv() {
     out.close();
 }
 
-
 void PostProcessing::SaveEdepCsv() {
     TTree* edep = nullptr;
     rootFile->GetObject("edep", edep);
@@ -590,7 +591,7 @@ void PostProcessing::SaveOpticsCsv() {
 
             auto& deps = edepMap[eventID_e];
 
-            if (std::strcmp(det_name, "Trigger") ==0 ) {
+            if (std::strcmp(det_name, "Trigger") == 0) {
                 deps.trigger += edep_MeV;
             } else if (std::strcmp(det_name, "SideVeto") == 0) {
                 deps.sideVeto += edep_MeV;
@@ -679,8 +680,7 @@ void PostProcessing::SaveOpticsCsv() {
 
         std::string subdetStr(subdet);
 
-
-        if (subdetStr == "Trigger" || subdetStr == "Trigger") {
+        if (subdetStr == "Trigger") {
             triggerChannels[ch_eventID][ch] = npe;
             allTriggerChannels.insert(ch);
         } else if (subdetStr == "SideVeto" || subdetStr == "Veto") {
@@ -739,8 +739,8 @@ void PostProcessing::SaveOpticsCsv() {
         }
 
         triggerFile << "eventID";
-        for (Int_t ch : sortedTriggerChannels) {
-            triggerFile << ",ch" << ch;
+        for (Int_t chId : sortedTriggerChannels) {
+            triggerFile << ",ch" << chId;
         }
         triggerFile << "\n";
 
@@ -748,8 +748,8 @@ void PostProcessing::SaveOpticsCsv() {
             triggerFile << evtID;
 
             const auto& channels = triggerChannels[evtID];
-            for (Int_t ch : sortedTriggerChannels) {
-                auto it = channels.find(ch);
+            for (Int_t chId : sortedTriggerChannels) {
+                auto it = channels.find(chId);
                 if (it != channels.end()) {
                     triggerFile << "," << it->second;
                 } else {
@@ -768,8 +768,8 @@ void PostProcessing::SaveOpticsCsv() {
         }
 
         vetoFile << "eventID";
-        for (Int_t ch : sortedVetoChannels) {
-            vetoFile << ",ch" << ch;
+        for (Int_t chId : sortedVetoChannels) {
+            vetoFile << ",ch" << chId;
         }
         vetoFile << "\n";
 
@@ -777,8 +777,8 @@ void PostProcessing::SaveOpticsCsv() {
             vetoFile << evtID;
 
             const auto& channels = vetoChannels[evtID];
-            for (Int_t ch : sortedVetoChannels) {
-                auto it = channels.find(ch);
+            for (Int_t chId : sortedVetoChannels) {
+                auto it = channels.find(chId);
                 if (it != channels.end()) {
                     vetoFile << "," << it->second;
                 } else {
@@ -797,8 +797,8 @@ void PostProcessing::SaveOpticsCsv() {
         }
 
         bottomFile << "eventID";
-        for (Int_t ch : sortedBottomVetoChannels) {
-            bottomFile << ",ch" << ch;
+        for (Int_t chId : sortedBottomVetoChannels) {
+            bottomFile << ",ch" << chId;
         }
         bottomFile << "\n";
 
@@ -806,8 +806,8 @@ void PostProcessing::SaveOpticsCsv() {
             bottomFile << evtID;
 
             const auto& channels = bottomVetoChannels[evtID];
-            for (Int_t ch : sortedBottomVetoChannels) {
-                auto it = channels.find(ch);
+            for (Int_t chId : sortedBottomVetoChannels) {
+                auto it = channels.find(chId);
                 if (it != channels.end()) {
                     bottomFile << "," << it->second;
                 } else {

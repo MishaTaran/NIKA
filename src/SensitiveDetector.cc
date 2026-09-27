@@ -37,6 +37,13 @@ G4bool SensitiveDetector::ProcessHits(G4Step *step, G4TouchableHistory *) {
     hit->AddEdep(edep);
     hit->UpdateTmin(t);
 
+    // === NEW: заполняем layer для Trigger ===
+    // В Detector::ConstructTOF triggerPV создаётся с copyNo = i (i = 0..2),
+    // поэтому volumeID и есть номер слоя S1/S2/S3.
+    if (detName == "Trigger") {
+        hit->layer = volumeID;
+    }
+
     return true;
 }
 

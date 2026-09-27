@@ -6,6 +6,7 @@
 #include <G4LogicalSkinSurface.hh>
 #include <G4MultiUnion.hh>
 #include "G4UnionSolid.hh"
+#include <algorithm>
 
 namespace
 {
@@ -41,17 +42,15 @@ void Detector::DefineMaterials() {
 
     const std::string base = "../OpticalParameters/";
     auto loadRIndex = [&](const std::string& prefix) -> Utils::Table {
-        // rindex is dimensionless
-        return Utils::ReadCSV(base + prefix + "_refractive_index.csv", /*valueScale=*/1.0, /*clampNonNegative=*/false);
+        return Utils::ReadCSV(base + prefix + "_refractive_index.csv", 1.0, false);
     };
     auto loadAbsLengthMM = [&](const std::string& prefix) -> Utils::Table {
-        // ABSLENGTH values are stored in mm in your files
-        return Utils::ReadCSV(base + prefix + "_absorption_length.csv", /*valueScale=*/mm, /*clampNonNegative=*/true);
+        return Utils::ReadCSV(base + prefix + "_absorption_length.csv", mm, true);
     };
     auto loadEmission2 = [&](const std::string& prefix,
                              const std::string& suffix = "_normalised_emission_intensity.csv")
         -> Utils::EmissionTables {
-        auto e = Utils::ReadEmissionCSV(base + prefix + suffix, /*valueScale=*/1.0, /*clampNonNegative=*/true);
+        auto e = Utils::ReadEmissionCSV(base + prefix + suffix, 1.0, true);
         Utils::NormalizeMaxToOne(e.c1);
         Utils::NormalizeMaxToOne(e.c2);
         return e;
@@ -66,19 +65,19 @@ void Detector::DefineMaterials() {
         }
     };
     {
-    SiPMMat = nist->FindOrBuildMaterial("G4_Si");
-    vetoMat = nist->FindOrBuildMaterial("G4_PLASTIC_SC_VINYLTOLUENE");
-    const std::string p = "Veto";
-    const auto rindex = loadRIndex(p);
-    const auto absl = loadAbsLengthMM(p);
-    auto emission = loadEmission2(p);
-    auto c = loadConsts(p);
-    applyYieldScaleIfPresent(c);
-    auto* mpt = new G4MaterialPropertiesTable();
-    mpt->AddProperty("RINDEX", rindex.E, rindex.V, rindex.E.size());
-    mpt->AddProperty("ABSLENGTH", absl.E, absl.V, absl.E.size());
-    Utils::ApplyScintillation(vetoMat, mpt, c, emission.c1, emission.c2, true);
-    Utils::ApplyBirksIfPresent(vetoMat, c);
+        SiPMMat = nist->FindOrBuildMaterial("G4_Si");
+        vetoMat = nist->FindOrBuildMaterial("G4_PLASTIC_SC_VINYLTOLUENE");
+        const std::string p = "Veto";
+        const auto rindex = loadRIndex(p);
+        const auto absl = loadAbsLengthMM(p);
+        auto emission = loadEmission2(p);
+        auto c = loadConsts(p);
+        applyYieldScaleIfPresent(c);
+        auto* mpt = new G4MaterialPropertiesTable();
+        mpt->AddProperty("RINDEX", rindex.E, rindex.V, rindex.E.size());
+        mpt->AddProperty("ABSLENGTH", absl.E, absl.V, absl.E.size());
+        Utils::ApplyScintillation(vetoMat, mpt, c, emission.c1, emission.c2, true);
+        Utils::ApplyBirksIfPresent(vetoMat, c);
     }
     alMat = nist->FindOrBuildMaterial("G4_Al");
     SiO2 = nist->FindOrBuildMaterial("G4_SILICON_DIOXIDE");
@@ -90,45 +89,44 @@ void Detector::DefineMaterials() {
 
     rubberMat = new G4Material("Rubber", 0.92 * g / cm3, 2, kStateSolid);
     rubberMat->AddElement(elC, 5);
-    rubberMat->AddElement(elH, 8); 
+    rubberMat->AddElement(elH, 8);
 
-    texMat = new G4Material("Tex", 1.85 * g/cm3, 2, kStateSolid);
-    texMat->AddMaterial(SiO2, 0.675); 
+    texMat = new G4Material("Tex", 1.85 * g / cm3, 2, kStateSolid);
+    texMat->AddMaterial(SiO2, 0.675);
     texMat->AddMaterial(Epoxy, 0.325);
+
     {
-    csIMat = new G4Material("CsI", 4.51 * g/cm3, 3, kStateSolid);
-    const G4double wTlcsI = 0.0008;
-    const G4double scalecsI = 1.0 - wTlcsI;
-    csIMat->AddElement(elCs, 0.511549 * scalecsI);
-    csIMat->AddElement(elI, 0.488451 * scalecsI);
-    csIMat->AddElement(elTl, wTlcsI);
-    auto rindex = loadRIndex("CsI");
-    auto absl = loadAbsLengthMM("CsI");
-    auto emission = loadEmission2("CsI");
-    auto c = loadConsts("CsI");
-    applyYieldScaleIfPresent(c);  
-    auto* mpt = new G4MaterialPropertiesTable();
-    mpt->AddProperty("RINDEX", rindex.E, rindex.V, rindex.E.size());
-    mpt->AddProperty("ABSLENGTH", absl.E, absl.V, absl.E.size());  
-    auto it = c.find("SCINTILLATIONYIELD");
-    Utils::ApplyScintillation(csIMat, mpt, c, emission.c1, emission.c2, true);
-    Utils::ApplyBirksIfPresent(csIMat, c);
+        csIMat = new G4Material("CsI", 4.51 * g / cm3, 3, kStateSolid);
+        const G4double wTlcsI = 0.0008;
+        const G4double scalecsI = 1.0 - wTlcsI;
+        csIMat->AddElement(elCs, 0.511549 * scalecsI);
+        csIMat->AddElement(elI, 0.488451 * scalecsI);
+        csIMat->AddElement(elTl, wTlcsI);
+        auto rindex = loadRIndex("CsI");
+        auto absl = loadAbsLengthMM("CsI");
+        auto emission = loadEmission2("CsI");
+        auto c = loadConsts("CsI");
+        applyYieldScaleIfPresent(c);
+        auto* mpt = new G4MaterialPropertiesTable();
+        mpt->AddProperty("RINDEX", rindex.E, rindex.V, rindex.E.size());
+        mpt->AddProperty("ABSLENGTH", absl.E, absl.V, absl.E.size());
+        Utils::ApplyScintillation(csIMat, mpt, c, emission.c1, emission.c2, true);
+        Utils::ApplyBirksIfPresent(csIMat, c);
     }
     {
-    SiPMEncapsulantMat = new G4Material("SiPMEncapsulant_DGEBA", 1.16*g/cm3, 3, kStateSolid);
-    // Stoichiometry from molecular formula C21H24O4
-    SiPMEncapsulantMat->AddElement(elC, 21);
-    SiPMEncapsulantMat->AddElement(elH, 24);
-    SiPMEncapsulantMat->AddElement(elO, 4);
-    const auto rindex = loadRIndex("SiPM_Encapsulant");
-    const auto absl = loadAbsLengthMM("SiPM_Encapsulant");
-    Utils::ApplyMaterialTable(SiPMEncapsulantMat, rindex, &absl);
+        SiPMEncapsulantMat = new G4Material("SiPMEncapsulant_DGEBA", 1.16 * g / cm3, 3, kStateSolid);
+        SiPMEncapsulantMat->AddElement(elC, 21);
+        SiPMEncapsulantMat->AddElement(elH, 24);
+        SiPMEncapsulantMat->AddElement(elO, 4);
+        const auto rindex = loadRIndex("SiPM_Encapsulant");
+        const auto absl = loadAbsLengthMM("SiPM_Encapsulant");
+        Utils::ApplyMaterialTable(SiPMEncapsulantMat, rindex, &absl);
     }
     {
-    glassMat = nist->FindOrBuildMaterial("G4_Pyrex_Glass");
-    const auto rindex = loadRIndex("Glass");
-    const auto absl = loadAbsLengthMM("Glass");
-    Utils::ApplyMaterialTable(glassMat, rindex, &absl);
+        glassMat = nist->FindOrBuildMaterial("G4_Pyrex_Glass");
+        const auto rindex = loadRIndex("Glass");
+        const auto absl = loadAbsLengthMM("Glass");
+        Utils::ApplyMaterialTable(glassMat, rindex, &absl);
     }
     {
         galacticMat = nist->FindOrBuildMaterial("G4_Galactic");
@@ -139,40 +137,40 @@ void Detector::DefineMaterials() {
     // ============================================================
     // СОЗДАНИЕ ПОВЕРХНОСТИ TYVEK
     // ============================================================
-        Utils::Table tyvekRefl;
-        try {
-            tyvekRefl = Utils::ReadCSV("../OpticalParameters/Tyvek_reflectivity.csv", 1.0, true);
-        } catch (const std::exception& e) {
-            tyvekRefl.E = {1.0*eV, 4.0*eV};
-            tyvekRefl.V = {0.95, 0.95};
-        }
-
-        auto* tyvekMPT = new G4MaterialPropertiesTable();
-        tyvekMPT->AddProperty("REFLECTIVITY", tyvekRefl.E.data(), tyvekRefl.V.data(), tyvekRefl.E.size());
-
-        tyvekSurf = new G4OpticalSurface("TyvekSurface");
-        tyvekSurf->SetModel(unified);
-
-        if (Configuration::polishedTyvek) {
-            tyvekSurf->SetType(dielectric_metal);
-            tyvekSurf->SetFinish(polished);
-            tyvekSurf->SetSigmaAlpha(0.0);
-        } else {
-            tyvekSurf->SetType(dielectric_dielectric);
-            tyvekSurf->SetFinish(groundfrontpainted);
-            tyvekSurf->SetSigmaAlpha(0.2);
-
-            std::vector<G4double> E = {1.0 * eV, 4.0 * eV};
-            std::vector<G4double> spike = {0.0, 0.0};
-            std::vector<G4double> lobe = {0.02, 0.02};
-            std::vector<G4double> back = {0.0, 0.0};
-            tyvekMPT->AddProperty("SPECULARSPIKECONSTANT", E.data(), spike.data(), 2, true);
-            tyvekMPT->AddProperty("SPECULARLOBECONSTANT", E.data(), lobe.data(), 2, true);
-            tyvekMPT->AddProperty("BACKSCATTERCONSTANT", E.data(), back.data(), 2, true);
-            G4cout << "[Detector] Tyvek surface: diffuse" << G4endl;
-        }
-        tyvekSurf->SetMaterialPropertiesTable(tyvekMPT);
+    Utils::Table tyvekRefl;
+    try {
+        tyvekRefl = Utils::ReadCSV("../OpticalParameters/Tyvek_reflectivity.csv", 1.0, true);
+    } catch (const std::exception& e) {
+        tyvekRefl.E = {1.0 * eV, 4.0 * eV};
+        tyvekRefl.V = {0.95, 0.95};
     }
+
+    auto* tyvekMPT = new G4MaterialPropertiesTable();
+    tyvekMPT->AddProperty("REFLECTIVITY", tyvekRefl.E.data(), tyvekRefl.V.data(), tyvekRefl.E.size());
+
+    tyvekSurf = new G4OpticalSurface("TyvekSurface");
+    tyvekSurf->SetModel(unified);
+
+    if (Configuration::polishedTyvek) {
+        tyvekSurf->SetType(dielectric_metal);
+        tyvekSurf->SetFinish(polished);
+        tyvekSurf->SetSigmaAlpha(0.0);
+    } else {
+        tyvekSurf->SetType(dielectric_dielectric);
+        tyvekSurf->SetFinish(groundfrontpainted);
+        tyvekSurf->SetSigmaAlpha(0.2);
+
+        std::vector<G4double> E = {1.0 * eV, 4.0 * eV};
+        std::vector<G4double> spike = {0.0, 0.0};
+        std::vector<G4double> lobe = {0.02, 0.02};
+        std::vector<G4double> back = {0.0, 0.0};
+        tyvekMPT->AddProperty("SPECULARSPIKECONSTANT", E.data(), spike.data(), 2, true);
+        tyvekMPT->AddProperty("SPECULARLOBECONSTANT", E.data(), lobe.data(), 2, true);
+        tyvekMPT->AddProperty("BACKSCATTERCONSTANT", E.data(), back.data(), 2, true);
+        G4cout << "[Detector] Tyvek surface: diffuse" << G4endl;
+    }
+    tyvekSurf->SetMaterialPropertiesTable(tyvekMPT);
+}
 
 void Detector::DefineVisual() {
     visVeto = new G4VisAttributes(G4Color(0.0, 0.7, 0.0, 0.4));
@@ -186,7 +184,7 @@ void Detector::DefineVisual() {
     visTex = new G4VisAttributes(G4Color(1.0, 1.0, 0.0, 1.0));
     visTex->SetForceSolid(true);
     visRubber = new G4VisAttributes(G4Color(1.0, 0.5, 0.0, 1.0));
-    visRubber->SetForceSolid(true);   
+    visRubber->SetForceSolid(true);
     visSiPM = new G4VisAttributes(G4Color(1.0, 0.5, 1.0, 0.8));
     visSiPM->SetForceSolid(true);
     visGlass = new G4VisAttributes(G4Color(0.0, 0.876, 0.96, 0.5));
@@ -198,12 +196,12 @@ void Detector::DefineVisual() {
 void Detector::CreateAluminumOpticalSurface() {
     if (!Configuration::useOptics) return;
     if (aluminumSurf) return;
-    
+
     Utils::Table alRefl;
     try {
         alRefl = Utils::ReadCSV("../OpticalParameters/Aluminum_reflectivity.csv", 1.0, true);
     } catch (const std::exception& e) {
-        alRefl.E = {1.0*eV, 4.0*eV};
+        alRefl.E = {1.0 * eV, 4.0 * eV};
         alRefl.V = {0.9, 0.9};
     }
     auto* mpt = new G4MaterialPropertiesTable();
@@ -226,60 +224,61 @@ void Detector::Construct() {
     PlaceAllSiPMs();
     ConstructOpticalSurfaces();
 }
+
 // ============================================================
 // СОЗДАНИЕ SiPM
 // ============================================================
 void Detector::ConstructSiPM() {
     auto* SiPMFrameBase = new G4Box("SiPMFrameBase",
-                            Trigger::spmXY / 2.0,
-                            Trigger::spmXY / 2.0,
-                            Trigger::spmZ / 2.0);
+                                    Trigger::spmXY / 2.0,
+                                    Trigger::spmXY / 2.0,
+                                    Trigger::spmZ / 2.0);
     auto* SiPMHole = new G4Box("SiPMHole",
-                            Trigger::spmXY / 2.0 - Trigger::SiPMFrame,
-                            Trigger::spmXY / 2.0 - Trigger::SiPMFrame,
-                            Trigger::spmZ / 2.0 + 5 * mm);
+                               Trigger::spmXY / 2.0 - Trigger::SiPMFrame,
+                               Trigger::spmXY / 2.0 - Trigger::SiPMFrame,
+                               Trigger::spmZ / 2.0 + 5 * mm);
     auto* SiPMFrame = new G4SubtractionSolid("SiPMFrame", SiPMFrameBase, SiPMHole);
     SiPMFrameLV = new G4LogicalVolume(SiPMFrame, galacticMat, "SiPMFrameLV");
     SiPMFrameLV->SetVisAttributes(visGalactic);
     auto* SiPMBody = new G4Box("SiPMBody",
-                            Trigger::spmXY / 2.0 - Trigger::SiPMFrame, 
-                            Trigger::spmXY / 2.0 - Trigger::SiPMFrame,
-                            (Trigger::spmZ - Trigger::SiPMWindowThick) / 2.0);
+                               Trigger::spmXY / 2.0 - Trigger::SiPMFrame,
+                               Trigger::spmXY / 2.0 - Trigger::SiPMFrame,
+                               (Trigger::spmZ - Trigger::SiPMWindowThick) / 2.0);
     SiPMBodyLV = new G4LogicalVolume(SiPMBody, SiPMMat, "SiPMBodyLV");
     SiPMBodyLV->SetVisAttributes(visSiPM);
     auto* SiPMWindow = new G4Box("SiPMWindow",
-                            Trigger::spmXY / 2.0 - Trigger::SiPMFrame,
-                            Trigger::spmXY / 2.0 - Trigger::SiPMFrame,
-                            Trigger::SiPMWindowThick / 2.0);
+                                 Trigger::spmXY / 2.0 - Trigger::SiPMFrame,
+                                 Trigger::spmXY / 2.0 - Trigger::SiPMFrame,
+                                 Trigger::SiPMWindowThick / 2.0);
     SiPMWindowLV = new G4LogicalVolume(SiPMWindow, SiPMEncapsulantMat, "SiPMWindowLV");
     SiPMWindowLV->SetVisAttributes(visGlass);
     auto* SiPMPV = new G4Box("SiPMWindow",
-                            Trigger::spmXY / 2.0,
-                            Trigger::spmXY / 2.0,
-                            Trigger::spmZ / 2.0);                        
+                             Trigger::spmXY / 2.0,
+                             Trigger::spmXY / 2.0,
+                             Trigger::spmZ / 2.0);
     SiPMLV = new G4LogicalVolume(SiPMPV, galacticMat, "SiPMLV");
     SiPMLV->SetVisAttributes(visGalactic);
     new G4PVPlacement(nullptr,
-                  G4ThreeVector(0, 0, 0),
-                  SiPMFrameLV,
-                  "SiPMFramePV",
-                  SiPMLV,
-                  false,
-                  0, true);
+                      G4ThreeVector(0, 0, 0),
+                      SiPMFrameLV,
+                      "SiPMFramePV",
+                      SiPMLV,
+                      false,
+                      0, true);
     auto* bodyPVP = new G4PVPlacement(nullptr,
-                  G4ThreeVector(0, 0, -Trigger::SiPMWindowThick / 2.0),
-                  SiPMBodyLV,
-                  "SiPMBodyPV",
-                  SiPMLV,
-                  false,
-                  0, true);
+                                      G4ThreeVector(0, 0, -Trigger::SiPMWindowThick / 2.0),
+                                      SiPMBodyLV,
+                                      "SiPMBodyPV",
+                                      SiPMLV,
+                                      false,
+                                      0, true);
     auto* windowPVP = new G4PVPlacement(nullptr,
-                  G4ThreeVector(0, 0, (Trigger::spmZ - Trigger::SiPMWindowThick) / 2.0),
-                  SiPMWindowLV,
-                  "SiPMWindowPV",
-                  SiPMLV,
-                  false,
-                  0, true);
+                                        G4ThreeVector(0, 0, (Trigger::spmZ - Trigger::SiPMWindowThick) / 2.0),
+                                        SiPMWindowLV,
+                                        "SiPMWindowPV",
+                                        SiPMLV,
+                                        false,
+                                        0, true);
     if (SiPMPhotocathodeSurf == nullptr) {
         G4cout << "[Detector] Creating SiPMPhotocathode surface..." << G4endl;
         SiPMPhotocathodeSurf = new G4OpticalSurface("SiPMPhotocathode");
@@ -296,8 +295,9 @@ void Detector::ConstructSiPM() {
     }
     new G4LogicalBorderSurface("SiPM_Photocathode", windowPVP, bodyPVP, SiPMPhotocathodeSurf);
 }
+
 // ============================================================
-// ПРЯМОЕ РАЗМЕЩЕНИЕ SiPM
+// РАЗМЕЩЕНИЕ SiPM
 // ============================================================
 void Detector::PlaceAllSiPMs() {
     G4RotationMatrix* rotX = new G4RotationMatrix();
@@ -313,27 +313,27 @@ void Detector::PlaceAllSiPMs() {
         G4RotationMatrix* rot;
         const char* name;
     };
-    std::vector<SiPMPosition> allPositions; 
+    std::vector<SiPMPosition> allPositions;
     // ============================================================
     // 1) TRIGGER SiPM (24 штуки: 3 слоя по 8 SiPM)
     // ============================================================
     {
         G4double zStart = VetoAC::DownVeloAll + Trigger::polkaSmallZ + Trigger::standZ / 2.0 - Trigger::spmZ / 2.0;
-        
+
         for (G4int layer = 0; layer < 3; ++layer) {
             G4double zPos = zStart + layer * (2.0 * (Trigger::tyvek + Trigger::polkaSmallZ) + Trigger::thicknessTrig) + Trigger::spmZ / 2.0;
-            
+
             G4double xOuter = Trigger::halfX + Trigger::spmZ / 2.0;
             G4double yInner = (Trigger::halfY - Trigger::spmZ) / 3.0 + Trigger::spmZ / 2.0;
-            
+
             allPositions.push_back({ xOuter,  yInner, zPos, rotY, "Trigger"});
             allPositions.push_back({ xOuter, -yInner, zPos, rotY, "Trigger"});
             allPositions.push_back({-xOuter,  yInner, zPos, rotYNeg, "Trigger"});
             allPositions.push_back({-xOuter, -yInner, zPos, rotYNeg, "Trigger"});
-            
+
             G4double xInner = (Trigger::halfX - Trigger::spmZ) / 3.0 + Trigger::spmZ / 2.0;
             G4double yOuter = Trigger::halfY + Trigger::spmZ / 2.0;
-            
+
             allPositions.push_back({ xInner,  yOuter, zPos, rotXNeg, "Trigger"});
             allPositions.push_back({ xInner, -yOuter, zPos, rotX, "Trigger"});
             allPositions.push_back({-xInner,  yOuter, zPos, rotXNeg, "Trigger"});
@@ -348,14 +348,14 @@ void Detector::PlaceAllSiPMs() {
         G4double pos = (VetoAC::sideVetoXY - Trigger::spmXY) / 3.0 + Trigger::spmXY / 2.0;
         G4double edgeX = Instrument::halfX - VetoAC::alTSide - Trigger::tyvek - VetoAC::thickness / 2.0;
         G4double edgeY = Instrument::halfY - VetoAC::alTSide - Trigger::tyvek - VetoAC::thickness / 2.0;
-        
+
         std::vector<std::pair<G4double, G4double>> coords = {
             { pos,  edgeY}, {-pos,  edgeY},
             { pos, -edgeY}, {-pos, -edgeY},
             { edgeX,  pos}, { edgeX, -pos},
             {-edgeX,  pos}, {-edgeX, -pos}
         };
-        
+
         for (const auto& coord : coords) {
             allPositions.push_back({coord.first, coord.second, zPos, nullptr, "SideVeto"});
         }
@@ -364,20 +364,20 @@ void Detector::PlaceAllSiPMs() {
     // 3) UPPER VETO SiPM (4 штуки)
     // ============================================================
     {
-    G4double zPos = VetoAC::DownVeloAll + 6.0 * (Trigger::tyvek + Trigger::polkaSmallZ) + 
-                    3.0 * Trigger::thicknessTrig + VetoAC::alTDown + Trigger::tyvek + 
-                    VetoAC::thickness + Trigger::spmZ / 2.0;
-    G4double half = VetoAC::sideVetoXY / 2.0;
-    G4RotationMatrix* rotY180 = new G4RotationMatrix();
-    rotY180->rotateX(180 * deg);
-    std::vector<std::pair<G4double, G4double>> coords = {
-        { half,  half}, {-half,  half},
-        { half, -half}, {-half, -half}
-    };
-    for (const auto& coord : coords) {
-        allPositions.push_back({coord.first, coord.second, zPos, rotY180, "UpperVeto"});
+        G4double zPos = VetoAC::DownVeloAll + 6.0 * (Trigger::tyvek + Trigger::polkaSmallZ) +
+                        3.0 * Trigger::thicknessTrig + VetoAC::alTDown + Trigger::tyvek +
+                        VetoAC::thickness + Trigger::spmZ / 2.0;
+        G4double half = VetoAC::sideVetoXY / 2.0;
+        G4RotationMatrix* rotY180 = new G4RotationMatrix();
+        rotY180->rotateX(180 * deg);
+        std::vector<std::pair<G4double, G4double>> coords = {
+            { half,  half}, {-half,  half},
+            { half, -half}, {-half, -half}
+        };
+        for (const auto& coord : coords) {
+            allPositions.push_back({coord.first, coord.second, zPos, rotY180, "UpperVeto"});
+        }
     }
-}
     // ============================================================
     // 4) BOTTOM VETO SiPM (4 штуки)
     // ============================================================
@@ -386,7 +386,7 @@ void Detector::PlaceAllSiPMs() {
         std::vector<std::pair<G4double, G4double>> coords = {
             {VetoAC::sideVetoXY/2.0, VetoAC::sideVetoXY/2.0}, {-VetoAC::sideVetoXY/2.0, VetoAC::sideVetoXY/2.0},
             {VetoAC::sideVetoXY/2.0, -VetoAC::sideVetoXY/2.0}, {-VetoAC::sideVetoXY/2.0, -VetoAC::sideVetoXY/2.0}
-        }; 
+        };
         for (const auto& coord : coords) {
             allPositions.push_back({coord.first, coord.second, zPos, nullptr, "BottomVeto"});
         }
@@ -417,7 +417,7 @@ void Detector::PlaceAllSiPMs() {
     if (Configuration::useOptics && SiPMPhotocathodeSurf) {
         int nSurfaces = 0;
         for (size_t i = 0; i < siPMPVs.size(); ++i) {
-            G4VPhysicalVolume* siPMPV = siPMPVs[i];  
+            G4VPhysicalVolume* siPMPV = siPMPVs[i];
             new G4LogicalBorderSurface(
                 "SiPMToWorld_" + std::to_string(i),
                 siPMPV,
@@ -473,13 +473,13 @@ void Detector::ConstructTOF() {
                             Trigger::standZ);
     auto* standrubSolid = new G4SubtractionSolid("Standrub", outerstandrub, innerstandrub);
     auto* standrubLV = new G4LogicalVolume(standrubSolid, rubberMat, "StandrubLV");
-    standrubLV->SetVisAttributes(visRubber); 
+    standrubLV->SetVisAttributes(visRubber);
     // ============================================================
     // 4 Cтойка с электроникой
     // ============================================================
     auto* outerstandel = new G4Box("StandelOuterEl",
                             Trigger::halfX + Trigger::tyvek + Trigger::standAlXY + Trigger::spmZ + Trigger::plataTOFXY,
-                            Trigger::halfY + Trigger::tyvek + Trigger::standAlXY + Trigger::spmZ + Trigger::plataTOFXY, 
+                            Trigger::halfY + Trigger::tyvek + Trigger::standAlXY + Trigger::spmZ + Trigger::plataTOFXY,
                             Trigger::standZ / 2.0);
     auto* innerstandel = new G4Box("StandelInnerEl",
                             Trigger::halfX + Trigger::tyvek + Trigger::standAlXY + Trigger::spmZ,
@@ -487,7 +487,7 @@ void Detector::ConstructTOF() {
                             Trigger::standZ);
     auto* standElSolid = new G4SubtractionSolid("Standel", outerstandel, innerstandel);
     auto* standElLV = new G4LogicalVolume(standElSolid, texMat, "StandelLV");
-    standElLV->SetVisAttributes(visTex);   
+    standElLV->SetVisAttributes(visTex);
     // ============================================================
     // 6 Пластина алюминия
     // ============================================================
@@ -507,7 +507,7 @@ void Detector::ConstructTOF() {
     auto* squareHoleX = new G4Box("SquareHole",
                              Instrument::halfX,
                              Trigger::spmXY / 2.0,
-                             Trigger::spmXY / 2.0); 
+                             Trigger::spmXY / 2.0);
     G4MultiUnion* holesUnion = new G4MultiUnion("HolesUnion");
     holesUnion->AddNode(squareHoleY, G4Translate3D((Trigger::halfX - Trigger::spmZ) / 3.0 + Trigger::spmZ / 2.0, 0, 0));
     holesUnion->AddNode(squareHoleY, G4Translate3D(-((Trigger::halfX - Trigger::spmZ) / 3.0 + Trigger::spmZ / 2.0), 0, 0));
@@ -561,7 +561,6 @@ void Detector::ConstructTOF() {
                           i,
                           checkOverlaps);
         z += Trigger::polkaSmallZ;
-        
         // ============================================================
         // ЦИКЛ Cтойка
         // ============================================================
@@ -597,7 +596,6 @@ void Detector::ConstructTOF() {
                           false,
                           i,
                           checkOverlaps);
-        
         // ============================================================
         // ЦИКЛ СЦИНТИЛЛЯТОР 5 мм + ТАЙВИК
         // ============================================================
@@ -619,7 +617,7 @@ void Detector::ConstructTOF() {
                               false,
                               i,
                               checkOverlaps);
-        g_tyvekPVs.push_back(tyvekPV); 
+        g_tyvekPVs.push_back(tyvekPV);
         z += Trigger::thicknessTrig + 2 * Trigger::tyvek;
         // ============================================================
         // ЦИКЛ Выступ маленький (закрывающий)
@@ -809,7 +807,6 @@ void Detector::ConstructSideVeto() {
     auto* plateSide2Solid = new G4SubtractionSolid("SidePLate2", outeral2, inneral2);
     auto* plateSide2LV = new G4LogicalVolume(plateSide2Solid, alMat, "SidePLate2");
     plateSide2LV->SetVisAttributes(visAl);
-    
     G4VPhysicalVolume* sidePlate2PVP = new G4PVPlacement(nullptr,
                       G4ThreeVector(0, 0, ZInInstrument((Instrument::sizeZ + VetoAC::alTSideDown) / 2.0)),
                       plateSide2LV,
@@ -1047,6 +1044,7 @@ void Detector::ConstructVeto() {
                       3,
                       checkOverlaps);
 }
+
 void Detector::ConstructShellAndContainer() {
     const G4bool checkOverlaps = true;
     auto* solid = new G4Box("InstrumentSolid",
@@ -1064,6 +1062,7 @@ void Detector::ConstructShellAndContainer() {
                       0,
                       checkOverlaps);
 }
+
 void Detector::AddBorderSurface(const G4String& name,
                                 G4VPhysicalVolume* pvFrom,
                                 G4VPhysicalVolume* pvTo,
@@ -1071,6 +1070,7 @@ void Detector::AddBorderSurface(const G4String& name,
     if (!pvFrom || !pvTo || !surf) return;
     new G4LogicalBorderSurface(name, pvFrom, pvTo, surf);
 }
+
 void Detector::AddBidirectionalBorder(const G4String& nameAToB,
                                       const G4String& nameBToA,
                                       G4VPhysicalVolume* pvA,
@@ -1080,6 +1080,7 @@ void Detector::AddBidirectionalBorder(const G4String& nameAToB,
     new G4LogicalBorderSurface(nameAToB, pvA, pvB, surf);
     new G4LogicalBorderSurface(nameBToA, pvB, pvA, surf);
 }
+
 void Detector::ConstructOpticalSurfaces() {
     const auto refl = Utils::ReadCSV("../OpticalParameters/Tyvek_reflectivity.csv", 1.0, true);
     auto* mpt = new G4MaterialPropertiesTable();
@@ -1105,18 +1106,28 @@ void Detector::ConstructOpticalSurfaces() {
     }
     mpt->AddProperty("REFLECTIVITY", refl.E, refl.V, refl.E.size());
     tyvekSurf->SetMaterialPropertiesTable(mpt);
-    // 1) Trigger <-> Tyvek
-    AddBidirectionalBorder("TriggerToTyvek", "TyvekToTrigger", triggerPV, tyvekPV, tyvekSurf);
+
+    // 1) Trigger <-> Tyvek — ДЛЯ ВСЕХ 3 СЛОЁВ
+    const size_t nTrigger = std::min(g_triggerPVs.size(), g_tyvekPVs.size());
+    for (size_t i = 0; i < nTrigger; ++i) {
+        AddBidirectionalBorder(
+            "TriggerToTyvek_" + std::to_string(i),
+            "TyvekToTrigger_" + std::to_string(i),
+            g_triggerPVs[i],
+            g_tyvekPVs[i],
+            tyvekSurf);
+    }
     // 2) BottomVeto <-> Tyvek
-    AddBidirectionalBorder("BottomVetoToTyvek", "TyvekToBottomVeto", bottomVetoPV, tyvekBottomPV, tyvekSurf);
+    AddBidirectionalBorder("BottomVetoToTyvek", "TyvekToBottomVeto",
+                           bottomVetoPV, tyvekBottomPV, tyvekSurf);
     // 3) UpperVeto <-> Tyvek
-    AddBidirectionalBorder("BottomVetoToTyvek", "TyvekToBottomVeto", upperVetoPV, tyvekUpperPV, tyvekSurf);
+    AddBidirectionalBorder("UpperVetoToTyvek", "TyvekToUpperVeto",
+                           upperVetoPV, tyvekUpperPV, tyvekSurf);
     // 4) SideVeto <-> Tyvek
-    AddBidirectionalBorder("SideVetoTyvek", "TyvekToSideVeto", sideVetoPV, tyvekSidePV, tyvekSurf);
-    // 5) Trigger <-> SiPM
+    AddBidirectionalBorder("SideVetoToTyvek", "TyvekToSideVeto",
+                           sideVetoPV, tyvekSidePV, tyvekSurf);
+    // 5-7) Trigger/Bottom/Upper <-> SiPM — оставляем как было
     AddBidirectionalBorder("TriggerToSiPM", "SiPMToTrigger", triggerPV, SiPMPVPV, tyvekSurf);
-    // 6) BottomVeto <-> SiPM
     AddBidirectionalBorder("BottomVetoToSiPM", "SiPMToBottomVeto", bottomVetoPV, SiPMPVPV, tyvekSurf);
-    // 7) UpperVeto <-> SiPM
     AddBidirectionalBorder("UpperVetoToSiPM", "SiPMToVetoSiPM", upperVetoPV, SiPMPVPV, tyvekSurf);
 }

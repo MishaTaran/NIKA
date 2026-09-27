@@ -10,6 +10,7 @@
 #include "G4VPhysicalVolume.hh"
 #include <map>
 #include <string>
+#include <array>
 
 // Перечисление для типов SiPM
 enum class SiPMGroup {
@@ -34,8 +35,14 @@ public:
     G4int GetNpeSideVeto() const { return npeSideVeto; }
     G4int GetNpeUpperVeto() const { return npeUpperVeto; }
     G4int GetNpeBottomVeto() const { return npeBottomVeto; }
-    
-    // Геттеры для per-channel счетчиков (оригинальные названия)
+
+    // === NEW: счётчики по слоям триггера (0, 1, 2) ===
+    G4int GetNpeTriggerLayer(G4int layer) const {
+        return (layer >= 0 && layer < 3) ? npeTriggerLayer[layer] : 0;
+    }
+    const std::array<G4int, 3>& GetNpeTriggerLayers() const { return npeTriggerLayer; }
+
+    // Геттеры для per-channel счетчиков
     const std::map<G4int, G4int>& GetPerChannelTrigger() const { return perChTrigger; }
     const std::map<G4int, G4int>& GetPerChannelSideVeto() const { return perChSideVeto; }
     const std::map<G4int, G4int>& GetPerChannelUpperVeto() const { return perChUpperVeto; }
@@ -47,16 +54,16 @@ public:
 private:
     // Получение граничного процесса для оптических фотонов
     G4OpBoundaryProcess* GetBoundaryProcess();
-    
+
     // Классификация SiPM по имени физического объема
     SiPMGroup ClassifyByPVName(const G4VPhysicalVolume* pv);
-    
+
     // Получение номера канала (copy number) SiPM через Touchable
     G4int GetSiPMCopyNumber(const G4StepPoint* point);
 
     // Указатель на граничный процесс
     G4OpBoundaryProcess* boundary = nullptr;
-    
+
     // Логический объем SiPM
     G4LogicalVolume* SiPMLV = nullptr;
 
@@ -65,6 +72,9 @@ private:
     G4int npeSideVeto = 0;
     G4int npeUpperVeto = 0;
     G4int npeBottomVeto = 0;
+
+    // === NEW: счётчики по слоям триггера ===
+    std::array<G4int, 3> npeTriggerLayer{0, 0, 0};
 
     // Per-channel счетчики
     std::map<G4int, G4int> perChTrigger;

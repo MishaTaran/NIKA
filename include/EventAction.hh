@@ -88,6 +88,9 @@ private:
     int WritePhotons_(int eventID);
     int WriteEdepFromSD_(const G4Event *evt, int eventID);
 
+    // === NEW: вывод счётчиков SiPM в терминал ===
+    void PrintSiPMCounts_(int eventID, double primaryE_MeV);
+
     // Методы для отметки детекторов
     void MarkTrigger() { hasTrigger = true; }
     void MarkVeto() {hasSideVeto = hasBottomVeto = hasUpperVeto = true; }
@@ -117,7 +120,7 @@ private:
     bool hasSideVeto = false;
     bool hasBottomVeto = false;
     bool hasUpperVeto = false;
-    
+
     // Флаги для оптических детекторов
     bool hasTriggerOpt = false;
     bool hasSideVetoOpt = false;

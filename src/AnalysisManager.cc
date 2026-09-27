@@ -29,6 +29,12 @@ void AnalysisManager::Book() {
     analysisManager->CreateNtupleDColumn("edep_MeV");
     analysisManager->FinishNtuple(edepNT);
 
+    triggerHitsNT = analysisManager->CreateNtuple("trigger_hits", "trigger layer hits");
+    analysisManager->CreateNtupleIColumn("eventID");
+    analysisManager->CreateNtupleIColumn("layer");
+    analysisManager->CreateNtupleDColumn("edep_MeV");
+    analysisManager->FinishNtuple(triggerHitsNT);
+
     primaryNT = analysisManager->CreateNtuple("primary", "per-primary particles");
     analysisManager->CreateNtupleIColumn("eventID");
     analysisManager->CreateNtupleSColumn("primary_name");

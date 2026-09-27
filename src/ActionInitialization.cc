@@ -9,7 +9,7 @@
 using namespace Configuration;
 
 ActionInitialization::ActionInitialization(const G4double a, const G4double Emin,
-                                           const G4double Emax, bool saveSeeds) 
+                                           const G4double Emax, bool saveSeeds)
     : EminMeV(Emin),
       EmaxMeV(Emax),
       area(a),
@@ -24,10 +24,10 @@ ActionInitialization::ActionInitialization(const G4double a, const G4double Emin
 }
 
 ActionInitialization::ActionInitialization(const G4double a, const G4double Emin,
-                                           const G4double Emax, 
-                                           const G4String& fluxDir, 
+                                           const G4double Emax,
+                                           const G4String& fluxDir,
                                            const G4String& fluxType,
-                                           bool saveSeeds) 
+                                           bool saveSeeds)
     : EminMeV(Emin),
       EmaxMeV(Emax),
       area(a),
@@ -54,13 +54,14 @@ void ActionInitialization::Build() const {
     SetUserAction(eventAct);
 
     PrimaryGeneratorAction* primaryGenerator;
-    
+
     if (useProvidedParams) {
-        primaryGenerator = new PrimaryGeneratorAction(fluxDirection, fluxType, eTriggerThreshold, saveSeeds);
+        primaryGenerator = new PrimaryGeneratorAction(fluxDirection, fluxType,
+                                                      eTriggerThreshold, saveSeeds);
     } else {
-        primaryGenerator = new PrimaryGeneratorAction(Configuration::fluxDirection, 
-                                                      Configuration::fluxType, 
-                                                      eTriggerThreshold, 
+        primaryGenerator = new PrimaryGeneratorAction(Configuration::fluxDirection,
+                                                      Configuration::fluxType,
+                                                      eTriggerThreshold,
                                                       saveSeeds);
     }
     SetUserAction(primaryGenerator);
@@ -68,5 +69,7 @@ void ActionInitialization::Build() const {
     SteppingAction* stepAct = new SteppingAction();
     stepAct->EnableDebug(false);
     stepAct->SetDebugEventID(-1);
+    stepAct->EnableGammaLog(true);   // <-- включить логирование гамма-взаимодействий
+    stepAct->SetGammaLogEventID(-1); // -1 = все события; можно указать конкретный eventID
     SetUserAction(stepAct);
 }

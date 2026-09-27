@@ -32,6 +32,12 @@ namespace Configuration
     inline G4String outputFile{"GammaCube.root"};
     inline G4bool saveSecondaries{true};
     inline G4bool savePhotons{false};
+
+    // ============================================================
+    // NEW: логирование взаимодействий гамма-квантов
+    // ============================================================
+    inline G4bool logGammaInteractions{false};   // включить вывод
+    inline G4int  logGammaEventID{-1};           // -1 = все события
 }
 
-#endif
+#endif // CONFIGURATION_HH
